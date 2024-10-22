@@ -69,6 +69,14 @@ class ConfigurationManager {
     }
 
     static getDevMode = process.env.DEV_MODE == 1 ? true : false;
+
+    /**
+     * Retrieves the request interval from environment variables.
+     * @returns {number} Request interval in seconds.
+     */
+    static getRequestInterval = () => {
+        return process.env.REQUEST_INTERVAL_SECONDS ? parseInt(process.env.REQUEST_INTERVAL_SECONDS) : 20;
+    }
 }
 
 export default ConfigurationManager;

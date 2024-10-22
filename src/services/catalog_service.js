@@ -1,6 +1,7 @@
 import Logger from "../utils/logger.js";
 import { fetchCatalogItems } from "../api/fetchCatalogItems.js";
 import { fetchItem } from "../api/fetchItem.js";
+import ConfigurationManager from './utils/config_manager.js';
 
 /**
  * Manage concurrency and fetching logic.
@@ -28,7 +29,7 @@ let currentID = 0;
 let fetchedIds = new Set();
 let concurrency = 0;
 
-function initializeConcurrency( concurrent_requests ) {
+function initializeConcurrency(concurrent_requests) {
     concurrency = concurrent_requests
 }
 
@@ -74,6 +75,7 @@ setInterval(() => {
     minFetchedRange = 99999999999;
     maxFetchedRange = 0;
 }, 1000);
+
 /**
  * Adjust the concurrency dynamically based on errors and time since last publication.
  */
@@ -114,7 +116,7 @@ async function fetchUntilCurrentAutomatic(cookie, callback) {
     // Adjust the concurrency limits dynamically
     adjustConcurrency();
 
-    while ( activePromises.size < computedConcurrency ) {
+    while (activePromises.size < computedConcurrency) {
         // Adjust the fetching step based on time since last publication and consecutive errors
         adjustStep();
 
@@ -163,7 +165,7 @@ function adjustStep() {
         // If it's been longer than 3 seconds since the last publication, increase the step by 1
         step = 1;
     }
-    
+
     // Reduce the step if there are consecutive errors
     if (consecutiveErrors > 5) {
         step = -1;
@@ -237,12 +239,12 @@ async function fetchAndHandleItemSafe(cookie, itemID, callback) {
 
         // Update the fetched item ID range
         updateFetchedRange(itemID);
-    } 
+    }
     // If the item was not found (404 error)
     else if (response.code === 404) {
         // Increment the consecutive errors counter
         consecutiveErrors++;
-    } 
+    }
     // If a rate limit error occurred (429 error)
     else if (response.code === 429) {
         // Increment the rate limit errors per second counter and log the error
@@ -300,7 +302,7 @@ function adjustConcurrency() {
         if (timeSinceLastPublication > 4000) {
             computedConcurrency = Math.min(computedConcurrency + 1, concurrency);
         }
-        
+
         // Decrease computedConcurrency if less than 1 second has passed since the last valid item was published
         if (timeSinceLastPublication < 1500) {
             computedConcurrency = Math.max(computedConcurrency - 1, 2);
@@ -332,7 +334,7 @@ async function findHighestIDUntilSuccessful(cookie) {
         try {
             // Fetch the highest ID
             const response = await findHighestID(cookie);
-            
+
             // If the highest ID is found, update the current ID and log the value
             if (response.highestID) {
                 currentID = response.highestID;
@@ -353,6 +355,22 @@ async function findHighestIDUntilSuccessful(cookie) {
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+/**
+ * Get the request interval from the configuration.
+ */
+const requestIntervalSeconds = ConfigurationManager.getRequestInterval();
+
+/**
+ * Fetch items every 20 seconds.
+ */
+setInterval(async () => {
+    try {
+        await fetchUntilCurrentAutomatic(cookie, callback);
+    } catch (error) {
+        Logger.error("Error fetching items:", error);
+    }
+}, requestIntervalSeconds * 1000);
 
 const CatalogService = {
     initializeConcurrency,
